@@ -1,0 +1,68 @@
+
+server.port: 8080
+
+spring:
+  # TODO: Change application name. Use kabab-case.
+  application.name: scrs-application-name
+  profiles.active: dev
+
+  kafka:
+    bootstrap-servers:
+      - localhost:9092
+    properties:
+      #request.timeout.ms: 20000
+      #retry.backoff.ms: 500
+
+      # Schema registry
+      schema.registry.url: http://localhost:8081
+      # If you are consuming a specific record from the topic you need to add the following line as well
+      specific.avro.reader: true
+
+    # DESP consumer
+    consumer:
+      group-id: group-1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+#      properties:
+#        interceptor.classes: io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor
+
+
+    # DESP producer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+#      properties:
+#        interceptor.classes: io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor
+
+
+info:
+  app:
+    name: ${spring.application.name}
+    profiles: ${spring.profiles.active}
+    artifactId: ${artifactId:UNKNOWN}
+    version: ${APP_VERSION:UNKNOWN}
+  build:
+    commit: ${buildVcsNumber:UNKNOWN}
+    number: ${buildNumber:UNKNOWN}
+  host:
+    name: ${host.name:UNKNOWN}
+
+management.endpoints.web.exposure:
+    include: "*"
+    exclude: shutdown
+
+osp-client:
+  base-url: https://example.com
+
+desp-producer:
+  broker-address: http://localhost:9092
+
+webhook-validator:
+  signature: H9FcRW0isRRMPgHZaa/+Vb4ueSnAKiKoxYtiaPVgQoKAw==
+  signatureKey: 9f4d72ee-18f2-469d-8a5e-a6b9fa8aa2cc
+
+logging.level:
+  root: warn
+  com.example.demogateway: info

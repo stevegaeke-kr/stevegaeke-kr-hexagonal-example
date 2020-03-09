@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "namespace": "local.test.desp",
+  "name": "PurchaseOrder",
+  "version": "1",
+  "fields": [
+    { "name": "purchaseOrderId", "type": "string", "doc": "Product identifier" },
+    { "name": "desciption", "type": ["string", "null"], "doc": "The product description" }
+  ]
+}

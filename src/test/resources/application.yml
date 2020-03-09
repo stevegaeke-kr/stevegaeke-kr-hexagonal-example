@@ -1,0 +1,63 @@
+
+server.port: 8080
+
+spring:
+  # TODO: Change application name. Use kabab-case.
+  application.name: scrs-application-name
+  profiles.active: dev
+
+  kafka:
+    # See https://docs.spring.io/spring-boot/docs/current/reference/html/spring-boot-features.html#boot-features-embedded-kafka
+    #bootstrap-servers: ${spring.embedded.kafka.brokers}
+    bootstrap-servers:
+      - localhost:9092
+    properties:
+      #request.timeout.ms: 20000
+      #retry.backoff.ms: 500
+
+      # Schema registry
+      schema.registry.url: http://localhost:8081
+
+    # DESP consumer
+    consumer:
+      group-id: group_id
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+
+    # DESP producer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+
+# Template that drives the layout of /actuator/info
+info:
+  app:
+    name: ${spring.application.name}
+    profiles: ${spring.profiles.active}
+    artifactId: ${artifactId:UNKNOWN}
+    version: ${APP_VERSION:UNKNOWN}
+  build:
+    commit: ${buildVcsNumber:UNKNOWN}
+    number: ${buildNumber:UNKNOWN}
+  host:
+    name: ${host.name:UNKNOWN}
+
+management.endpoints.web.exposure:
+    include: "*"
+    exclude: shutdown
+
+osp-client:
+  base-url: https://example.com
+
+desp-producer:
+  broker-address: http://localhost:9092
+
+webhook-validator:
+  signature: H9FcRW0isRRMPgHZaa/+Vb4ueSnAKiKoxYtiaPVgQoKAw==
+  signatureKey: 9f4d72ee-18f2-469d-8a5e-a6b9fa8aa2cc
+
+logging.level:
+  root: warn
+  com.example.demogateway: info
