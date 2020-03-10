@@ -2,7 +2,6 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -11,6 +10,40 @@
     <version>2.2.5.RELEASE</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
+
+  <!--
+
+    * * * Docker must be installed to perform integration and system functional testing. * * *
+
+
+    # Example development workflow tasks
+
+    Note that JUnit5 is used to perform unit, integration and system functional testing.
+    Test cases need to be tagged with 'Unit', 'Integration' or 'System' to be included in
+    the correct test phase. Example: `@UnitTest`, `@IntegrationTest` and `@SystemTest`.
+
+    Note: SUT == system under test
+
+    - Compile and unit test:
+
+        $ mvn clean test -Dbuildtime.output.log
+
+    - Perform checkstyle check:
+
+        $ mvn checkstyle:check
+
+    - Perform integration testing using docker hosted dependencies. SUT runs as a JAR.
+
+        $ mvn clean verify -Dbuildtime.output.log
+
+    - End-to-end testing using Docker containers for dependencies and SUT:
+
+        $ mvn clean verify -P system-tests -Dbuildtime.output.log
+
+    - Dockerize service (does not publish to container registry):
+
+        $ mvn clean package -P docker-build -Dbuildtime.output.log
+  -->
 
   <groupId>com.example</groupId>
   <artifactId>demo-gateway</artifactId>
@@ -24,8 +57,6 @@
         Typically '1.8' or '11'.
     -->
     <java.version>11</java.version>
-
-    <suppressions.xml>${project.basedir}/checkstyle-suppressions2.xml</suppressions.xml>
 
     <!--
       For pipeline builds: mvn clean package -Drevision.buildId=${buildID}
@@ -47,19 +78,21 @@
     <org.apache.avro.version>1.9.2</org.apache.avro.version>
     <io.confluent.version>5.4.0</io.confluent.version>
 
-    <!-- Default test tag run for maven-failsafe-plugin -->
+    <!-- Default test tag used for maven-failsafe-plugin -->
     <junit.tag>Integration</junit.tag>
 
-    <!-- Unneeded lifecycles -->
+    <!-- docker related variables -->
+    <docker.build.skip>true</docker.build.skip>
+    <docker.image>scrs/${project.artifactId}</docker.image>
+
+    <!-- Unneeded lifecycles. The fat jar file is packaged within a docker image. -->
     <skip.install>true</skip.install>
     <skip.deploy>true</skip.deploy>
   </properties>
 
   <dependencies>
 
-    <!--
-        ====== Begin application dependencies ======
-    -->
+    <!-- A P P L I C A T I O N -->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -74,12 +107,6 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-configuration-processor</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -108,9 +135,7 @@
       <version>${io.confluent.version}</version>
     </dependency>
 
-    <!--
-      ====== Begin test dependencies ======
-    -->
+    <!-- T E S T -->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -144,10 +169,90 @@
       <artifactId>spring-kafka-test</artifactId>
     </dependency>
 
+    <!-- B U I L D -->
+
+    <!--
+      ====== maven-buildtime-extension ======
+
+      Reports the timing to execute each maven goal to the output. Note that this extension
+      requires a file created under <projectroot>/.mvn/extensions.xml. To get a build goal
+      timing report, include `-Dbuildtime.output.log=true` in the maven command.
+
+      Example usage:
+
+      mvn clean verify -Dbuildtime.output.log=true
+    -->
+    <dependency>
+      <groupId>co.leantechniques</groupId>
+      <artifactId>maven-buildtime-extension</artifactId>
+      <version>3.0.3</version>
+    </dependency>
+
+    <!-- enables intellisense for configuration properties -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
   </dependencies>
+
+
+  <!-- P R O F I L E S -->
+
+  <!--
+
+    Profiles are created to facilitate running build pipeline steps locally on developer
+    workstations. Tasks that should never be executed on a developer workstation are
+    intended to be implemented within the build pipeline and not included as a Maven profile.
+
+  -->
+  <profiles>
+
+    <!--
+        When the system-tests profile is active, the maven-failsafe-plugin will be flipped from performing
+        integration tests to performing system tests.
+
+        maven verify -P system-tests
+    -->
+    <profile>
+      <id>system-tests</id>
+      <properties>
+        <junit.tag>System</junit.tag>
+        <docker.build.skip>false</docker.build.skip>
+      </properties>
+    </profile>
+
+    <!--
+        When the build-docker profile is active, a docker image for the service
+        will be created during the package phase.
+
+        maven package -P docker-build
+    -->
+    <profile>
+      <id>docker-build</id>
+      <properties>
+        <docker.build.skip>false</docker.build.skip>
+      </properties>
+    </profile>
+
+  </profiles>
+
 
   <build>
     <plugins>
+
+      <!--
+        ====== spring-boot-maven-plugin ======
+
+        Configures the Spring Boot plugin to generate build-info that is used to
+        populate the /actuator/info endpoint.
+
+        Example usage:
+
+        mvn compile
+
+      -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
@@ -161,6 +266,31 @@
           </execution>
         </executions>
       </plugin>
+
+
+      <!--
+        ====== git-commit-id-plugin ======
+
+        Populates /actuator/info with Git tag information when the compile phase is executed.
+
+        Example usage:
+
+        mvn compile
+
+      -->
+      <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
 
       <!--
         ====== avro-maven-plugin ======
@@ -181,14 +311,12 @@
             <phase>generate-sources</phase>
             <goals>
               <goal>schema</goal>
-<!--              <goal>protocol</goal>-->
-<!--              <goal>idl-protocol</goal>-->
             </goals>
             <configuration>
               <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
               <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
               <stringType>String</stringType>
-              <createSetters>false</createSetters>
+              <createSetters>true</createSetters>
               <enableDecimalLogicalType>true</enableDecimalLogicalType>
               <fieldVisibility>private</fieldVisibility>
             </configuration>
@@ -303,6 +431,157 @@
               <goal>check</goal>
             </goals>
           </execution>
+        </executions>
+      </plugin>
+
+
+      <!--
+          ====== maven-failsafe-plugin ======
+
+          Performs either integration or system testing. The default mode will be to execute
+          integration tests (JUnit5 tests tagged with 'Integration').
+
+          To perform system tests, execute the system profile which will change the target tag
+          from 'Integration' to 'System'.
+
+          Note that the default class naming conventions for integration tests has been removed and now
+          solely relies on JUnit5 tags to select the appropriate test cases.
+
+          Example usage:
+
+              mvn verify                      # executes integration tests
+              mvn verify -P system-tests      # executes system tests
+
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!--
+              Override default class naming conventions. Rely on JUnit5 tags instead
+          -->
+          <includes>
+            <include>**/*.class</include>
+          </includes>
+          <!--
+              Select between tests tagged with 'Integration' or 'EndToEnd'
+          -->
+          <groups>${junit.tag}</groups>
+          <excludedGroups>Unit</excludedGroups>
+        </configuration>
+      </plugin>
+
+
+      <!--
+          ====== maven-surefire-plugin ======
+
+          Configured to execute unit test cases tagged with JUnit tag 'Unit'.
+
+          Example usage:
+
+          mvn test        # executes all unit tests tagged with 'Unit'
+
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Execute only tests tagged as Unit -->
+          <groups>Unit</groups>
+          <!-- Skip any tests tagged as integration or system -->
+          <excludedGroups>Integration, System</excludedGroups>
+        </configuration>
+      </plugin>
+
+
+      <!--
+          ====== maven-antrun-plugin ======
+
+          A collection of ant tasks attached to an appropriate maven phase and skipped by default.
+          Maven profiles are used to enable the execution of the ant tasks.
+
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <!--
+              docker-build will generate a docker image for the service.
+
+              mvn package -P docker-build
+
+          -->
+          <execution>
+            <id>docker-build</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+
+            <configuration>
+              <target>
+
+                <echo message="-------------------------------------------------------"/>
+                <echo message="D O C K E R I Z I N G - ${project.build.finalName}.jar"/>
+                <echo message="-------------------------------------------------------"/>
+
+                <!-- TODO: Need to trap errors and abort the build -->
+                <exec executable="docker">
+
+                  <arg value="build"/>
+
+                  <!-- pass the final output JAR name to the docker build command -->
+                  <arg value="--build-arg"/>
+                  <arg value="JAR_NAME=${project.build.finalName}.jar"/>
+
+                  <!-- tag the docker image; multiple tags can be specified if needed -->
+                  <arg value="-t"/>
+                  <arg value="${docker.image}:${project.version}"/>
+                  <!-- this tag is used for system testing; not intended for container registry -->
+                  <arg value="-t"/>
+                  <arg value="${docker.image}:e2e"/>
+
+                  <!-- Specify where to find Dockerfile relative to build context '.' -->
+                  <arg value="-f"/>
+                  <arg value="./src/main/docker/Dockerfile"/>
+
+                  <!-- build context should be at root folder -->
+                  <arg value="."/>
+                </exec>
+
+                <!--
+                    Consider if pushing to docker registry makes sense here or if publishing
+                    should only be performed from build pipeline. If only appropriate from the
+                    build pipeline, there may be no need to complicate the pom.xml with
+                    additional tasks that shouldn't be performed locally by developers.
+                 -->
+
+              </target>
+              <skip>${docker.build.skip}</skip>
+            </configuration>
+
+          </execution>
+
+          <!-- TODO: Experimenting with buildId auto-generation -->
+          <execution>
+            <id>buildId</id>
+            <phase>initialize</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo message="==== Generating buildId ===="/>
+                <exec executable="git" outputproperty="revision.buildId">
+                  <arg value="rev-parse"/>
+                  <arg value="--short"/>
+                  <arg value="HEAD"/>
+                </exec>
+              </target>
+              <exportAntProperties>true</exportAntProperties>
+            </configuration>
+          </execution>
+
         </executions>
       </plugin>
 
