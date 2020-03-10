@@ -18,6 +18,7 @@ services:
       - 2181:2181             # Zookeeper
       - 3030:3030             # Landoop UI
       - 8081:8081             # Schema Registry
+      - 8082:8082             # REST Proxy
       - 9092:9092             # Kafka broker
     networks:
       - app-tier

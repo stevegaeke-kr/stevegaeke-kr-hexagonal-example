@@ -9,6 +9,6 @@ import org.junit.jupiter.api.Tag;
 
 @Target(TYPE)
 @Retention(RUNTIME)
-@Tag("System")
-public @interface SystemTest {
+@Tag("EndToEnd")
+public @interface EndToEndTest {
 }

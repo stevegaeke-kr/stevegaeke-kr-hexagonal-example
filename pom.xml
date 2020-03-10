@@ -13,12 +13,12 @@
 
   <!--
 
-    * * * Docker must be installed to perform integration and system functional testing. * * *
+    * * * Docker must be installed to perform integration and end-to-end functional testing. * * *
 
 
     # Example development workflow tasks
 
-    Note that JUnit5 is used to perform unit, integration and system functional testing.
+    Note that JUnit5 is used to perform unit, integration and end-to-end functional testing.
     Test cases need to be tagged with 'Unit', 'Integration' or 'System' to be included in
     the correct test phase. Example: `@UnitTest`, `@IntegrationTest` and `@SystemTest`.
 
@@ -38,7 +38,7 @@
 
     - End-to-end testing using Docker containers for dependencies and SUT:
 
-        $ mvn clean verify -P system-tests -Dbuildtime.output.log
+        $ mvn clean verify -P end-to-end -Dbuildtime.output.log
 
     - Dockerize service (does not publish to container registry):
 
@@ -210,15 +210,15 @@
   <profiles>
 
     <!--
-        When the system-tests profile is active, the maven-failsafe-plugin will be flipped from performing
-        integration tests to performing system tests.
+        When the end-to-end profile is active, the maven-failsafe-plugin will be flipped from performing
+        integration tests to performing end-to-end tests.
 
-        maven verify -P system-tests
+        maven verify -P end-to-end
     -->
     <profile>
-      <id>system-tests</id>
+      <id>end-to-end</id>
       <properties>
-        <junit.tag>System</junit.tag>
+        <junit.tag>EndToEnd</junit.tag>
         <docker.build.skip>false</docker.build.skip>
       </properties>
     </profile>
@@ -438,10 +438,10 @@
       <!--
           ====== maven-failsafe-plugin ======
 
-          Performs either integration or system testing. The default mode will be to execute
+          Performs either integration or end-to-end testing. The default mode will be to execute
           integration tests (JUnit5 tests tagged with 'Integration').
 
-          To perform system tests, execute the system profile which will change the target tag
+          To perform end-to-end tests, execute the end-to-end profile which will change the target tag
           from 'Integration' to 'System'.
 
           Note that the default class naming conventions for integration tests has been removed and now
@@ -450,7 +450,7 @@
           Example usage:
 
               mvn verify                      # executes integration tests
-              mvn verify -P system-tests      # executes system tests
+              mvn verify -P end-to-end        # executes end-to-end tests
 
       -->
       <plugin>
@@ -488,8 +488,8 @@
         <configuration>
           <!-- Execute only tests tagged as Unit -->
           <groups>Unit</groups>
-          <!-- Skip any tests tagged as integration or system -->
-          <excludedGroups>Integration, System</excludedGroups>
+          <!-- Skip any tests tagged as integration or end-to-end -->
+          <excludedGroups>Integration, EndToEnd</excludedGroups>
         </configuration>
       </plugin>
 
@@ -537,7 +537,7 @@
                   <!-- tag the docker image; multiple tags can be specified if needed -->
                   <arg value="-t"/>
                   <arg value="${docker.image}:${project.version}"/>
-                  <!-- this tag is used for system testing; not intended for container registry -->
+                  <!-- this tag is used for end-to-end testing; not intended for container registry -->
                   <arg value="-t"/>
                   <arg value="${docker.image}:e2e"/>
 
