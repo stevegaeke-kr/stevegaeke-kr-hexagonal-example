@@ -75,7 +75,7 @@
     <!-- dependency versions not managed by Spring Boot's BOM -->
     <org.mapstruct.version>1.3.1.Final</org.mapstruct.version>
     <org.projectlombok.version>1.18.12</org.projectlombok.version>
-    <org.apache.avro.version>1.9.2</org.apache.avro.version>
+    <org.apache.avro.version>1.11.3</org.apache.avro.version>
     <io.confluent.version>5.4.0</io.confluent.version>
 
     <!-- Default test tag used for maven-failsafe-plugin -->
